@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Folder Include="Validators\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" Version="14.2.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.9" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SchedulerJobCenter.Domain\SchedulerJobCenter.Domain.csproj" />
+    <ProjectReference Include="..\SchedulerJobCenter.Infrastructure\SchedulerJobCenter.Infrastructure.csproj" />
+    <ProjectReference Include="..\SchedulerJobCenter.Shared\SchedulerJobCenter.Shared.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="SchedulerJobCenter.Application/SchedulerJobCenter.Application.csproj" />
+  <Project Path="SchedulerJobCenter.Domain/SchedulerJobCenter.Domain.csproj" />
+  <Project Path="SchedulerJobCenter.Infrastructure/SchedulerJobCenter.Infrastructure.csproj" />
+  <Project Path="SchedulerJobCenter.Shared/SchedulerJobCenter.Shared.csproj" />
+  <Project Path="SchedulerJobCenter/SchedulerJobCenter.Api.csproj" />
+</Solution>
