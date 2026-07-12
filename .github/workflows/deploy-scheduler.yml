@@ -8,6 +8,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+       # ───── 调试步骤：检查目录结构 ─────
+      - name: Debug directory structure
+        run: |
+          echo "Current directory: $(pwd)"
+          echo "=== Root listing ==="
+          ls -la
+          echo "=== Check Api folder ==="
+          ls -la SchedulerJobCenter.Api || echo "NOT FOUND"
+          echo "=== Check src folder ==="
+          ls -la src/ || echo "No src dir"
+      # ───── 调试步骤结束 ─────
+
+      
       - uses: docker/setup-buildx-action@v3
 
       - name: Login to Tencent Cloud Registry
