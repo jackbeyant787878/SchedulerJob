@@ -11,19 +11,21 @@ ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 
 # 复制所有 .csproj 文件（路径相对于根目录）
-COPY ["SchedulerJobCenter/SchedulerJobCenter.Api.csproj", "SchedulerJobCenter.Api/"]
+# 注意目标路径都改为对应的文件夹名，与主机一致
+COPY ["SchedulerJobCenter/SchedulerJobCenter.Api.csproj", "SchedulerJobCenter/"]
 COPY ["SchedulerJobCenter.Application/SchedulerJobCenter.Application.csproj", "SchedulerJobCenter.Application/"]
 COPY ["SchedulerJobCenter.Domain/SchedulerJobCenter.Domain.csproj", "SchedulerJobCenter.Domain/"]
 COPY ["SchedulerJobCenter.Infrastructure/SchedulerJobCenter.Infrastructure.csproj", "SchedulerJobCenter.Infrastructure/"]
 COPY ["SchedulerJobCenter.Shared/SchedulerJobCenter.Shared.csproj", "SchedulerJobCenter.Shared/"]
 
-RUN dotnet restore "SchedulerJobCenter.Api/SchedulerJobCenter.Api.csproj"
+# 恢复 Api 项目的依赖（路径与主机一致）
+RUN dotnet restore "SchedulerJobCenter/SchedulerJobCenter.Api.csproj"
 
 # 复制所有源代码（相对于根目录）
 COPY . .
 
-# 构建并发布 Api 项目
-WORKDIR "/src/SchedulerJobCenter.Api"
+# 构建并发布 Api 项目（工作目录与主机一致）
+WORKDIR "/src/SchedulerJobCenter"
 RUN dotnet build "SchedulerJobCenter.Api.csproj" -c $BUILD_CONFIGURATION -o /app/build
 RUN dotnet publish "SchedulerJobCenter.Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
