@@ -11,7 +11,7 @@ ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 
 # 复制所有 .csproj 文件（路径相对于根目录）
-COPY ["SchedulerJobCenter.Api/SchedulerJobCenter.Api.csproj", "SchedulerJobCenter.Api/"]
+COPY ["SchedulerJobCenter/SchedulerJobCenter.Api.csproj", "SchedulerJobCenter.Api/"]
 COPY ["SchedulerJobCenter.Application/SchedulerJobCenter.Application.csproj", "SchedulerJobCenter.Application/"]
 COPY ["SchedulerJobCenter.Domain/SchedulerJobCenter.Domain.csproj", "SchedulerJobCenter.Domain/"]
 COPY ["SchedulerJobCenter.Infrastructure/SchedulerJobCenter.Infrastructure.csproj", "SchedulerJobCenter.Infrastructure/"]
