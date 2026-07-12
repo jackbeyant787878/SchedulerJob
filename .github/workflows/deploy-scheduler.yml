@@ -7,6 +7,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # ⬇️ 调试步骤：查看所有 .csproj 文件路径
+      - name: Show directory tree
+        run: |
+          echo "=== Current directory ==="
+          pwd
+          echo "=== Top-level files and folders ==="
+          ls -la
+          echo "=== All .csproj files ==="
+          find . -name "*.csproj" -type f
+
       - uses: docker/setup-buildx-action@v3
 
       - name: Login to Tencent Cloud Registry
@@ -19,7 +30,7 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: ./src
+          context: .               # 暂时保留，待修正
           file: ./SchedulerJobCenter.Api/Dockerfile
           push: true
           tags: |
@@ -54,33 +65,25 @@ jobs:
             set -e
             cd /tmp/scheduler-deploy/k8s
 
-            # ---- 1. 创建命名空间 ----
             kubectl apply -f scheduler-namespace.yaml
 
-            # ---- 2. 创建镜像拉取凭据（TCR） ----
             kubectl delete secret tcr-secret -n scheduler --ignore-not-found
             kubectl create secret docker-registry tcr-secret -n scheduler \
               --docker-server=ccr.ccs.tencentyun.com \
               --docker-username=${{ secrets.TENCENT_REGISTRY_USERNAME }} \
               --docker-password=${{ secrets.TENCENT_REGISTRY_PASSWORD }}
 
-            # ---- 3. 创建应用敏感 Secret（数据库完整连接串，以及可能的其他敏感项） ----
-            # 使用完整的连接字符串（来自 GitHub Secret）
             kubectl create secret generic scheduler-secrets -n scheduler \
               --from-literal=CONNECTIONSTRINGS__DEFAULTCONNECTION="${{ secrets.SQLSERVER_CONNECTIONSTRING }}" \
               --dry-run=client -o yaml | kubectl apply -f -
 
-            # ---- 4. 应用 ConfigMap（非敏感配置） ----
             kubectl apply -f scheduler-config.yaml
 
-            # ---- 5. 替换镜像标签并部署 ----
             sed -i "s|image:.*|image: ${{ secrets.TENCENT_REGISTRY }}:${{ github.sha }}|g" scheduler-deployment.yaml
             kubectl apply -f scheduler-deployment.yaml
             kubectl apply -f scheduler-service.yaml
 
-            # ---- 6. 等待滚动更新完成 ----
             kubectl rollout status deployment/scheduler-deployment -n scheduler --timeout=3m
 
-            # ---- 7. 输出状态 ----
             kubectl get pods -n scheduler -o wide
             kubectl get svc -n scheduler
