@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: scheduler-svc
+  namespace: scheduler
+spec:
+  selector:
+    app: scheduler-svc
+  ports:
+    - port: 5060
+      targetPort: 5060
+      nodePort: 30060          # 可选，若需外部访问，可固定 NodePort
+  type: NodePort               # 也可用 ClusterIP，根据需求
