@@ -58,6 +58,10 @@ try
     builder.Services.AddApplication();           // Register MediatR & Command/Query Handlers
     builder.Services.AddInfrastructure(builder.Configuration); // EF Core, Quartz, Repositories
 
+
+
+
+
     // ── Health Checks ──────────────────────────────────────────────
     builder.Services.AddHealthChecks()
         .AddSqlServer(
@@ -70,15 +74,11 @@ try
     // ── Middleware Pipeline ────────────────────────────────────────────
     app.UseMiddleware<RequestLoggingMiddleware>();
 
-    if (app.Environment.IsDevelopment())
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
     {
-        app.UseSwagger();
-        app.UseSwaggerUI(c =>
-        {
-            c.SwaggerEndpoint("/swagger/v1/swagger.json", "SchedulerJobCenter API v1");
-            c.RoutePrefix = string.Empty;
-        });
-    }
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "SchedulerJobCenter API v1");
+    });
 
     app.UseCors("AllowAll");
     app.UseAuthorization();

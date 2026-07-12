@@ -1,30 +1,34 @@
-# 请参阅 https://aka.ms/customizecontainer 以了解如何自定义调试容器，以及 Visual Studio 如何使用此 Dockerfile 生成映像以更快地进行调试。
-
-# 此阶段用于在快速模式(默认为调试配置)下从 VS 运行时
+# 基础镜像：运行时
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
 USER $APP_UID
 WORKDIR /app
-EXPOSE 8080
-EXPOSE 8081
+EXPOSE 5060
+ENV ASPNETCORE_URLS=http://+:5060
 
-
-# 此阶段用于生成服务项目
+# 构建镜像：SDK
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["SchedulerJobCenter.csproj", "."]
-RUN dotnet restore "./SchedulerJobCenter.csproj"
+
+# 复制所有 .csproj 文件（路径相对于根目录）
+COPY ["SchedulerJobCenter.Api/SchedulerJobCenter.Api.csproj", "SchedulerJobCenter.Api/"]
+COPY ["SchedulerJobCenter.Application/SchedulerJobCenter.Application.csproj", "SchedulerJobCenter.Application/"]
+COPY ["SchedulerJobCenter.Domain/SchedulerJobCenter.Domain.csproj", "SchedulerJobCenter.Domain/"]
+COPY ["SchedulerJobCenter.Infrastructure/SchedulerJobCenter.Infrastructure.csproj", "SchedulerJobCenter.Infrastructure/"]
+COPY ["SchedulerJobCenter.Shared/SchedulerJobCenter.Shared.csproj", "SchedulerJobCenter.Shared/"]
+
+RUN dotnet restore "SchedulerJobCenter.Api/SchedulerJobCenter.Api.csproj"
+
+# 复制所有源代码（相对于根目录）
 COPY . .
-WORKDIR "/src/."
-RUN dotnet build "./SchedulerJobCenter.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
-# 此阶段用于发布要复制到最终阶段的服务项目
-FROM build AS publish
-ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "./SchedulerJobCenter.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+# 构建并发布 Api 项目
+WORKDIR "/src/SchedulerJobCenter.Api"
+RUN dotnet build "SchedulerJobCenter.Api.csproj" -c $BUILD_CONFIGURATION -o /app/build
+RUN dotnet publish "SchedulerJobCenter.Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
-# 此阶段在生产中使用，或在常规模式下从 VS 运行时使用(在不使用调试配置时为默认值)
+# 最终阶段
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "SchedulerJobCenter.dll"]
+ENTRYPOINT ["dotnet", "SchedulerJobCenter.Api.dll"]

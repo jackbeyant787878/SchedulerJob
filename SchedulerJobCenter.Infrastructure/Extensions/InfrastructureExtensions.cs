@@ -12,6 +12,13 @@ namespace SchedulerJobCenter.Infrastructure.Extensions
     {
         public static IServiceCollection AddInfrastructure(this IServiceCollection services,IConfiguration configuration)
         {
+            #if DEBUG
+
+            #else
+                // register Consul service discovery 
+                 services.AddConsulRegistry(configuration);
+            #endif
+
             // ── Configuration Options ──────────────────────────────────────────
             services.Configure<SchedulerJobOptions>(configuration.GetSection(SchedulerJobOptions.SectionName));
 
