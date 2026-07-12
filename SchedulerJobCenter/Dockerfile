@@ -30,5 +30,5 @@ RUN dotnet publish "SchedulerJobCenter.Api.csproj" -c $BUILD_CONFIGURATION -o /a
 # 最终阶段
 FROM base AS final
 WORKDIR /app
-COPY --from=publish /app/publish .
+COPY --from=build /app/publish .
 ENTRYPOINT ["dotnet", "SchedulerJobCenter.Api.dll"]
