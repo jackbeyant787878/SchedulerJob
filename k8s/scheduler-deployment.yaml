@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scheduler-deployment
+  namespace: scheduler
+spec:
+  replicas: 1          # 定时任务建议单副本，避免重复执行
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: scheduler-svc
+  template:
+    metadata:
+      labels:
+        app: scheduler-svc
+    spec:
+      imagePullSecrets:
+      - name: tcr-secret
+      containers:
+      - name: scheduler-api
+        image: PLACEHOLDER_IMAGE   # CI 中会被替换
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 5060
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        envFrom:
+        - configMapRef:
+            name: scheduler-config
+        - secretRef:
+            name: scheduler-secrets   # 存放数据库连接串
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5060
+          initialDelaySeconds: 15
+          periodSeconds: 15
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5060
+          initialDelaySeconds: 10
+          periodSeconds: 10
