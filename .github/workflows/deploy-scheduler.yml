@@ -8,16 +8,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # ⬇️ 调试步骤：查看所有 .csproj 文件路径
-      - name: Show directory tree
-        run: |
-          echo "=== Current directory ==="
-          pwd
-          echo "=== Top-level files and folders ==="
-          ls -la
-          echo "=== All .csproj files ==="
-          find . -name "*.csproj" -type f
-
       - uses: docker/setup-buildx-action@v3
 
       - name: Login to Tencent Cloud Registry
@@ -28,10 +18,10 @@ jobs:
           password: ${{ secrets.TENCENT_REGISTRY_PASSWORD }}
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6   # 升级到 v6，消除 Node 20 警告
         with:
-          context: .               # 暂时保留，待修正
-          file: ./SchedulerJobCenter.Api/Dockerfile
+          context: .
+          file: ./SchedulerJobCenter/Dockerfile   # 修正为实际路径
           push: true
           tags: |
             ${{ secrets.TENCENT_REGISTRY }}:latest
