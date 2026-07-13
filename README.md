@@ -57,7 +57,9 @@ Frontend Request → Controller \(Pure Routing Forwarding\) → MediatR \(Comman
 
 ### Standardized Project Structure
 
-```Plain Text
+All modules are uniformly organized under the solution root with a clean, Git\-friendly structure:
+
+```plain text
 SchedulerJobCenter_Root/
 ├── SchedulerJobCenter.sln                 # Solution entry
 ├── SchedulerJobCenter.Api/                # Startup & API presentation layer
@@ -113,7 +115,7 @@ SchedulerJobCenter_Root/
 
 - Decouples task triggering from server local time, supporting full IANA standard time zone configuration \(Asia/Shanghai, UTC, Europe/America time zones, etc\.\)\.
 
-- Tasks execute strictly based on**user\-configured time zones** rather than server time, eliminating execution offset, missed tasks and duplicate runs caused by cross\-region deployment and daylight saving time switching\.
+- Tasks execute strictly based on **user\-configured time zones** rather than server time, eliminating execution offset, missed tasks and duplicate runs caused by cross\-region deployment and daylight saving time switching\.
 
 - Frontend provides time zone selection, real\-time Cron validation, and preview of the next 5 scheduled execution times for intuitive configuration\.
 
@@ -197,71 +199,154 @@ SchedulerJobCenter is a **production\-grade distributed task scheduling platform
 
 With standardized architecture, thorough code decoupling, robust fault tolerance and comprehensive observability, the project maintains lightweight characteristics and low deployment costs\. It supports both standalone and cluster deployment scenarios and can be directly deployed to production for medium and large\-scale distributed systems, serving as a high\-cost\-performance, enterprise\-level unified scheduling solution for the \.NET ecosystem\.
 
----
+## 📊 Quartz\.NET Core Scheduling Execution Principle Flowchart
 
-# Quartz\.NET Underlying Core Execution Principle \& Cluster Scheduling Flowchart \(GitHub Renderable\)
-
-**Flowchart Description**: This diagram reveals the underlying operating mechanism of the Quartz\.NET scheduling engine in SchedulerJobCenter, covering task loading, time zone calibration, cluster competition execution, concurrency isolation, fault retry, and full\-link logging governance\. It fully restores the production\-level distributed scheduling core logic and supports native GitHub Mermaid rendering\.
+The following flowchart focuses entirely on the **native underlying execution principle of Quartz\.NET**, abandoning upper business CQRS logic\. It accurately restores the core workflow of Quartz job storage, time rule parsing, distributed cluster competition, thread pool scheduling, task execution, fault retry and persistent governance:
 
 ```mermaid
-
 flowchart TB
-    %% Style definition
-    classDef infra fill:#2c3e50,color:#fff
-    classDef core fill:#3498db,color:#fff
-    classDef time fill:#9b59b6,color:#fff
-    classDef cluster fill:#f39c12,color:#fff
-    classDef fault fill:#e74c3c,color:#fff
-    classDef output fill:#27ae60,color:#fff
+    %% 高端技术流程图样式
+    classDef quartzCore fill:#e6f7ff,stroke:#1890ff,stroke-width:2px
+    classDef dataStore fill:#f0f8ff,stroke:#00b96b,stroke-width:2px
+    classDef execute fill:#fff2e8,stroke:#fa8c16,stroke-width:2px
+    classDef fault fill:#fef0f0,stroke:#f5222d,stroke-width:2px
 
-    %% Initialization & Data Layer
-    A[System Startup]:::infra -- EF Core Migration & Init --> B[AdoJobStore Database Persistence]:::infra
-    B --> C[Load All Valid Jobs/TriggersRestore Scheduling Context]:::core
+    %% 初始化与任务入库
+    A["Job/Trigger Definition Init"] --> B["Resolve IANA Time Zone + 6-digit Cron Rule"]
+    B --> C["AdoJobStore Persistence(Jobs / Triggers / Calendar)"]
 
-    %% Time Zone Calibration Core
-    C --> D[IANA Standard Time Zone ParsingOverride Server Local Time]:::time
-    D --> E[6-Digit Second-Level Cron CalculationPrecise Next Execution Time]:::time
+    %% 集群调度核心
+    subgraph Quartz Cluster Core Scheduling
+        C --> D["Quartz Scheduler Startup"]
+        D --> E["Scan Valid Triggers in Database"]
+        E --> F["Match Current Time Window"]
+        F --> G["Distributed Cluster Lock Competition"]
+    end
 
-    %% Distributed Cluster Competition
-    E --> F[Multi-Node Cluster Scheduling Competition]:::cluster
-    F --> G{Database Distributed Lock Competition}
-    G -- Lock Acquired (Master Node) --> H[Trigger Task Execution Pipeline]
-    G -- Lock Failed (Standby Node) --> I[Idle Listening, No Duplicate Execution]
+    %% 执行权限校验
+    G --> H{Lock Acquisition Result}
+    H -- Lock Success --> I["Single Node Occupies Execution Right"]
+    H -- Lock Failed --> J["Other Nodes Skip & Wait"]
 
-    %% Core Execution & Concurrency Control
-    H --> J[DisallowConcurrentExecution CheckSingle Task Idempotency Lock]:::core
-    J --> K{Task Running Normally?}
-    K -- Yes --> L[Execute HTTP GET/POST Business Callback]:::core
-    K -- No (Timeout/Blocked) --> M[Trigger Task Timeout Circuit Break]:::fault
+    %% 任务执行管控
+    subgraph Task Runtime Control
+        I --> K["DisallowConcurrentExecution Check"]
+        K -- No Running Task --> L["Worker Thread Pool Dispatch"]
+        K -- Task Running --> M["Reject Duplicate Execution"]
+        L --> N["HTTP Business Task Invoke"]
+    end
 
-    %% Fault Tolerance & Retry Mechanism
-    L --> N{Execution Success?}
-    N -- Success --> O[Update Job Status + Record Execution Log]:::output
-    N -- Failed --> P[Adaptive Exponential Backoff Retry]:::fault
-    P --> Q{Retry Count Reached Threshold?}
-    Q -- No --> L
-    Q -- Yes --> R[Mark Task Abnormal + Record Exception Stack]:::fault
+    %% 容错与重试机制
+    subgraph Fault Tolerance & Retry
+        N --> O{Execution Status}
+        O -- Success --> P["Update Trigger Next Fire Time"]
+        O -- Failed --> Q["Exponential Backoff Retry Strategy"]
+        Q -- Retry Success --> P
+        Q -- Retry Exhausted --> R["Mark Task Failed & Record Exception"]
+    end
 
-    %% Post-Execution Governance
-    O --> S[Refresh Next Cron Execution Time]
-    R --> S
-    S --> T[Persistent Update Trigger State to DB]
-    T --> U[Wait for Next Scheduling Cycle]
+    %% 数据更新与运维
+    P & R --> S["Persistent Execution Log & Task Status"]
+    S --> T["Background Timed Log Cleanup"]
+    P --> U["Wait for Next Cron Trigger Cycle"]
+    U --> E
 
-    %% Background Automated Governance
-    V[Timed Background Service]:::infra --> W[Expired Execution Log Automatic Cleanup]:::output
+    %% 样式绑定
+    class A,B,D,E,F,G quartzCore
+    class C,S,T dataStore
+    class I,K,L,N execute
+    class O,Q,R fault
     ```
 
-### Quartz\.NET Core Underlying Mechanism Explanation
+```mermaid
+flowchart TB
+    %% 样式定义，高端扁平化风格
+    classDef layer fill:#f0f7ff,stroke:#2563eb,stroke-width:2px
+    classDef core fill:#ecfdf5,stroke:#059669,stroke-width:2px
+    classDef fault fill:#fff7ed,stroke:#d97706,stroke-width:2px
+    classDef data fill:#faf5ff,stroke:#9333ea,stroke-width:2px
 
-- **Distributed Lock Scheduling**: Based on AdoJobStore database lock competition, only one node in the cluster acquires the execution lock for a single task, fundamentally avoiding duplicate task execution in multi\-node deployment\.
+    %% 上层用户操作层
+    subgraph UserLayer["👤 User Operation Layer"]
+        A["Frontend Dashboard / API Request"]
+    end
+    class UserLayer layer
 
-- **Time Zone Isolated Scheduling**: Abandons server time scheduling, uniformly calculates execution timestamps based on user\-configured IANA time zones, perfectly adapts to cross\-region deployment and daylight saving time changes\.
+    %% API接入层
+    subgraph ApiLayer["🌐 API Gateway Layer"]
+        B["Route Matching & Global Validation"]
+        C["Pure Controller Routing Forwarding"]
+        D["Unified Request Response Wrapper"]
+    end
+    class ApiLayer layer
 
-- **Native Concurrency Isolation**: Implements task\-level exclusive locks through Quartz native attributes, ensuring that the same task cannot be executed concurrently, realizing business idempotency without manual code locking\.
+    %% CQRS业务层
+    subgraph CqrsLayer["📑 CQRS Business Layer"]
+        E["MediatR Request Dispatcher"]
+        F["Query Handler - Read Logic"]
+        G["Command Handler - Write Logic"]
+    end
+    class CqrsLayer layer
 
-- **State Persistence Recovery**: All task and trigger states are persistently stored in the database\. Service restart or node failover can automatically restore the scheduling context without missing tasks\.
+    %% 核心调度引擎层
+    subgraph ScheduleLayer["⚡ Quartz Core Scheduling Layer"]
+        H["Task CRUD / Dynamic Configuration"]
+        I["IANA Time Zone & Cron Parsing"]
+        J["Distributed Cluster Lock Check"]
+        K["Disallow Concurrent Execution Control"]
+    end
+    class ScheduleLayer core
 
-- **Layered Fault Tolerance**: Integrates timeout circuit breaking \+ exponential backoff retry \+ abnormal log recording to comprehensively solve task jitter and transient failure problems in high\-concurrency production environments\.
+    %% 任务执行容错层
+    subgraph ExecuteLayer["🔧 Task Execution & Fault Tolerance Layer"]
+        L["Scheduled / Manual Task Trigger"]
+        M["HTTP GET/POST Service Invoke"]
+        N{Execution Result Judge}
+        O["Exponential Backoff Retry"]
+        P["Timeout Circuit Breaking"]
+    end
+    class ExecuteLayer fault
 
+    %% 数据运维层
+    subgraph DataLayer["💾 Data Persistence & Governance Layer"]
+        Q["Full-link Log Recording"]
+        R["EF Core Data Storage"]
+        S["Auto Expired Log Cleanup Service"]
+    end
+    class DataLayer data
 
+    %% 可观测层
+    subgraph MonitorLayer["📈 Observability Monitoring Layer"]
+        T["Structured Serilog Output"]
+        U["Fault Trace & Metrics Statistics"]
+    end
+    class MonitorLayer layer
+
+    %% 流程连线
+    A --> B --> C --> D --> E
+    E --> F
+    E --> G
+    G --> H --> I --> J --> K --> L
+    L --> M --> N
+    
+    N -- Success --> Q
+    N -- Fail --> O
+    O -- Retry Success --> Q
+    O -- Retry Failed --> P --> Q
+
+    Q --> R
+    R --> S
+    Q --> T --> U```
+
+```mermaid
+flowchart LR
+  A([注册/登录])-->B[输入手机号]
+  B-->C{是否已注册?}
+  C--是-->D[输入密码]
+  C--否-->E[输入验证码]
+  D-->F([注册/登录成功])
+  E-->F```
+
+**Quartz Core Principle Explanation**: The core scheduling capability entirely relies on Quartz\.NET native mechanism\. It implements**database persistent scheduling** based on AdoJobStore, completes distributed task preemption through cluster database locks, strictly controls task idempotency via built\-in concurrent interception features, and matches precise scheduling time based on IANA time zone \+ standard six\-digit Cron\. It forms a closed\-loop scheduling mechanism of scanning, competing, executing, fault\-tolerant and iterative triggering, which fundamentally solves the problems of inaccurate timing and unstable cluster execution of traditional scheduling frameworks\.
+
+> （注：部分内容可能由 AI 生成）
