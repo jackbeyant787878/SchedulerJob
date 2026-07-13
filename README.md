@@ -18,7 +18,7 @@ In traditional microservice development, most teams embed independent scheduling
 
 - **Heavy Operational Overhead**: Traditional scheduling systems require service restarts for any task modification, lacking dynamic configuration capabilities and real\-time operational flexibility\.
 
-Built to resolve the above limitations, SchedulerJobCenter delivers a**centralized, decoupled, observable, and highly available** unified scheduling solution for microservice ecosystems\. Business services no longer need to integrate any scheduling components — only public HTTP endpoints are required to receive scheduled job triggers\.
+Built to resolve the above limitations, SchedulerJobCenter delivers a **centralized, decoupled, observable, and highly available** unified scheduling solution for microservice ecosystems\. Business services no longer need to integrate any scheduling components — only public HTTP endpoints are required to receive scheduled job triggers\.
 
 ## ⚙️ Core Technology Selection \& Comparison
 
@@ -57,9 +57,7 @@ Frontend Request → Controller \(Pure Routing Forwarding\) → MediatR \(Comman
 
 ### Standardized Project Structure
 
-All modules are uniformly organized under the solution root with a clean, Git\-friendly structure:
-
-```plain text
+```Plain Text
 SchedulerJobCenter_Root/
 ├── SchedulerJobCenter.sln                 # Solution entry
 ├── SchedulerJobCenter.Api/                # Startup & API presentation layer
@@ -115,7 +113,7 @@ SchedulerJobCenter_Root/
 
 - Decouples task triggering from server local time, supporting full IANA standard time zone configuration \(Asia/Shanghai, UTC, Europe/America time zones, etc\.\)\.
 
-- Tasks execute strictly based on **user\-configured time zones** rather than server time, eliminating execution offset, missed tasks and duplicate runs caused by cross\-region deployment and daylight saving time switching\.
+- Tasks execute strictly based on**user\-configured time zones** rather than server time, eliminating execution offset, missed tasks and duplicate runs caused by cross\-region deployment and daylight saving time switching\.
 
 - Frontend provides time zone selection, real\-time Cron validation, and preview of the next 5 scheduled execution times for intuitive configuration\.
 
@@ -198,5 +196,72 @@ SchedulerJobCenter_Root/
 SchedulerJobCenter is a **production\-grade distributed task scheduling platform exclusively optimized for \.NET microservice ecosystems**\. It avoids the commercial limitations and functional deficiencies of Hangfire, adopting native Quartz\.NET scheduling capabilities and standardized CQRS layered architecture\. It fundamentally solves common microservice scheduling pain points including decentralized task management, inaccurate time zone execution, concurrency anomalies and cumbersome operation maintenance\.
 
 With standardized architecture, thorough code decoupling, robust fault tolerance and comprehensive observability, the project maintains lightweight characteristics and low deployment costs\. It supports both standalone and cluster deployment scenarios and can be directly deployed to production for medium and large\-scale distributed systems, serving as a high\-cost\-performance, enterprise\-level unified scheduling solution for the \.NET ecosystem\.
+
+---
+
+# Quartz\.NET Underlying Core Execution Principle \& Cluster Scheduling Flowchart \(GitHub Renderable\)
+
+**Flowchart Description**: This diagram reveals the underlying operating mechanism of the Quartz\.NET scheduling engine in SchedulerJobCenter, covering task loading, time zone calibration, cluster competition execution, concurrency isolation, fault retry, and full\-link logging governance\. It fully restores the production\-level distributed scheduling core logic and supports native GitHub Mermaid rendering\.
+
+```mermaid
+
+flowchart TB
+    %% Style definition
+    classDef infra fill:#2c3e50,color:#fff
+    classDef core fill:#3498db,color:#fff
+    classDef time fill:#9b59b6,color:#fff
+    classDef cluster fill:#f39c12,color:#fff
+    classDef fault fill:#e74c3c,color:#fff
+    classDef output fill:#27ae60,color:#fff
+
+    %% Initialization & Data Layer
+    A[System Startup]:::infra -- EF Core Migration & Init --> B[AdoJobStore Database Persistence]:::infra
+    B --> C[Load All Valid Jobs/TriggersRestore Scheduling Context]:::core
+
+    %% Time Zone Calibration Core
+    C --> D[IANA Standard Time Zone ParsingOverride Server Local Time]:::time
+    D --> E[6-Digit Second-Level Cron CalculationPrecise Next Execution Time]:::time
+
+    %% Distributed Cluster Competition
+    E --> F[Multi-Node Cluster Scheduling Competition]:::cluster
+    F --> G{Database Distributed Lock Competition}
+    G -- Lock Acquired (Master Node) --> H[Trigger Task Execution Pipeline]
+    G -- Lock Failed (Standby Node) --> I[Idle Listening, No Duplicate Execution]
+
+    %% Core Execution & Concurrency Control
+    H --> J[DisallowConcurrentExecution CheckSingle Task Idempotency Lock]:::core
+    J --> K{Task Running Normally?}
+    K -- Yes --> L[Execute HTTP GET/POST Business Callback]:::core
+    K -- No (Timeout/Blocked) --> M[Trigger Task Timeout Circuit Break]:::fault
+
+    %% Fault Tolerance & Retry Mechanism
+    L --> N{Execution Success?}
+    N -- Success --> O[Update Job Status + Record Execution Log]:::output
+    N -- Failed --> P[Adaptive Exponential Backoff Retry]:::fault
+    P --> Q{Retry Count Reached Threshold?}
+    Q -- No --> L
+    Q -- Yes --> R[Mark Task Abnormal + Record Exception Stack]:::fault
+
+    %% Post-Execution Governance
+    O --> S[Refresh Next Cron Execution Time]
+    R --> S
+    S --> T[Persistent Update Trigger State to DB]
+    T --> U[Wait for Next Scheduling Cycle]
+
+    %% Background Automated Governance
+    V[Timed Background Service]:::infra --> W[Expired Execution Log Automatic Cleanup]:::output
+    ```
+
+### Quartz\.NET Core Underlying Mechanism Explanation
+
+- **Distributed Lock Scheduling**: Based on AdoJobStore database lock competition, only one node in the cluster acquires the execution lock for a single task, fundamentally avoiding duplicate task execution in multi\-node deployment\.
+
+- **Time Zone Isolated Scheduling**: Abandons server time scheduling, uniformly calculates execution timestamps based on user\-configured IANA time zones, perfectly adapts to cross\-region deployment and daylight saving time changes\.
+
+- **Native Concurrency Isolation**: Implements task\-level exclusive locks through Quartz native attributes, ensuring that the same task cannot be executed concurrently, realizing business idempotency without manual code locking\.
+
+- **State Persistence Recovery**: All task and trigger states are persistently stored in the database\. Service restart or node failover can automatically restore the scheduling context without missing tasks\.
+
+- **Layered Fault Tolerance**: Integrates timeout circuit breaking \+ exponential backoff retry \+ abnormal log recording to comprehensively solve task jitter and transient failure problems in high\-concurrency production environments\.
 
 
