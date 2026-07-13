@@ -1,202 +1,202 @@
-# SchedulerJobCenter 分布式定时任务调度中心
+# SchedulerJobCenter Distributed Scheduled Task Scheduling Center
 
-**✨ 基于 \.NET 10 \+ Quartz\.NET \+ CQRS 架构的生产级分布式定时任务调度平台**
+**✨ Production\-Grade Distributed Task Scheduling Platform Built on \.NET 10 \+ Quartz\.NET \+ CQRS Architecture**
 
-彻底解决微服务架构下各服务独立集成定时任务的臃肿痛点，统一托管全网定时任务，支持**自定义时区调度、动态任务配置、高并发容错、自动重试、全链路日志监控、定时日志清理**，轻量化、高可用、可直接集群部署，完美适配 \.NET 微服务体系。
+SchedulerJobCenter eliminates the long\-standing drawbacks of scattered, self\-hosted scheduled tasks within individual microservices\. It provides a centralized scheduling hub to uniformly manage all periodic jobs across the entire cluster\. It features **custom time zone scheduling, dynamic task configuration, high\-concurrency fault tolerance, automatic retry logic, full\-link logging and monitoring, and scheduled log cleanup**\. Lightweight and highly available, it supports out\-of\-the\-box cluster deployment and perfectly integrates with modern \.NET microservice architectures\.
 
-## 📖 项目背景
+## 📖 Project Background
 
-在传统微服务开发中，多数项目会在每个业务服务独立集成定时任务框架，普遍存在以下痛点：
+In traditional microservice development, most teams embed independent scheduling frameworks into every business service\. This fragmented approach introduces widespread architectural and operational pain points:
 
-- **服务耦合严重**：调度逻辑侵入业务服务，导致服务臃肿、职责不单一，维护成本极高
+- **Severe Service Coupling**: Scheduling logic pollutes business services, resulting in bloated service code, blurred single responsibilities, and substantially increased maintenance overhead\.
 
-- **任务分散难管控**：多服务任务独立运行，无统一视图，无法批量管理、排查问题
+- **Decentralized Task Management**: Tasks run independently across multiple services with no unified dashboard or governance mechanism, making batch administration, auditing, and fault troubleshooting extremely difficult\.
 
-- **调度精度与时区缺陷**：多数框架不支持精准时区调度，跨地域部署易出现任务执行偏移、漏执行、重复执行问题
+- **Time Zone \& Scheduling Inaccuracy**: Most open\-source schedulers lack precise time zone awareness\. Cross\-region deployment frequently causes task drift, missed executions, and duplicate triggers due to UTC conversion bias and daylight saving time changes\.
 
-- **高并发容错薄弱**：缺乏并发控制、幂等校验、失败重试机制，生产环境稳定性差
+- **Poor High\-Concurrency Fault Tolerance**: Native support for concurrency control, idempotency validation, and failure retry is missing, leading to unstable task execution in high\-load production environments\.
 
-- **运维繁琐**：新增/修改任务需重启服务，无动态配置能力，无法实时运维
+- **Heavy Operational Overhead**: Traditional scheduling systems require service restarts for any task modification, lacking dynamic configuration capabilities and real\-time operational flexibility\.
 
-SchedulerJobCenter 专为解决以上问题设计，打造**中心化、解耦式、可观测、高可用**的微服务统一调度解决方案，业务服务无需集成任何调度组件，仅需提供可匿名访问的 HTTP 接口即可完成定时调度。
+Built to resolve the above limitations, SchedulerJobCenter delivers a**centralized, decoupled, observable, and highly available** unified scheduling solution for microservice ecosystems\. Business services no longer need to integrate any scheduling components — only public HTTP endpoints are required to receive scheduled job triggers\.
 
-## ⚙️ 核心技术选型 \& 选型对比
+## ⚙️ Core Technology Selection \& Comparison
 
-项目核心调度框架舍弃传统 Hangfire，最终选用**Quartz\.NET 最新稳定版**，针对业务核心需求（时区调度、秒级精度、动态任务、集群高可用）做精准选型，对比如下：
+Replacing the commonly used Hangfire framework, this project adopts the **latest stable Quartz\.NET** as its core scheduling engine\. The selection prioritizes production\-critical capabilities including precise time zone scheduling, second\-level cron accuracy, dynamic task manipulation, and stable cluster HA\. A detailed feature comparison is shown below:
 
-|对比维度|Hangfire|Quartz\.NET（本项目选型）|
+|Comparison Dimension|Hangfire|Quartz\.NET \(Project Selection\)|
 |---|---|---|
-|Cron 表达式精度|仅支持5位（分钟级），秒级调度需付费版|原生支持6位标准Cron（秒级起步），毫秒级调度精度|
-|时区调度能力|支持薄弱，底层UTC转换存储，集群易时区错乱、夏令时异常|原生 TimeZoneInfo 支持，完整IANA时区配置，严格按指定时区触发任务|
-|并发控制|依赖服务全局配置，无细粒度任务级控制|原生 `DisallowConcurrentExecution`，单任务禁止并发执行，天然防重|
-|集群高可用|免费版集群锁竞争严重，完整集群能力需付费|内置AdoJobStore分布式集群，开源免费、稳定无锁冲突|
-|动态任务适配|基于方法反射注册，无法动态配置URL，适配性差|原生支持动态新增/编辑/启停任务，无需重启服务|
-|开源协议|LGPL（商业项目有合规风险）|Apache 2\.0（完全免费、商用无限制）|
+|Cron Expression Accuracy|Only 5\-digit minute\-level precision; second\-level scheduling requires commercial licensing|Native 6\-digit standard Cron support \(second\-level baseline\), with millisecond\-level execution precision|
+|Time Zone Scheduling|Limited time zone support; UTC\-based storage frequently causes cluster time offset errors and daylight saving time anomalies|First\-class TimeZoneInfo integration with full IANA time zone support; tasks strictly follow user\-specified time zones|
+|Concurrency Control|Global service\-level locking only, without fine\-grained per\-task concurrency isolation|Native `DisallowConcurrentExecution` attribute ensures single\-task isolation and inherent execution idempotency|
+|Cluster High Availability|Intense lock contention in free edition; full cluster capabilities are commercially gated|Built\-in AdoJobStore distributed clustering; fully open\-source, lock\-free, and production\-stable|
+|Dynamic Task Adaptation|Relies on runtime method reflection; does not support dynamic HTTP endpoint configuration with poor flexibility|Fully dynamic task creation, editing, suspension and resumption without service restarts|
+|Open Source License|LGPL \(introduces potential commercial usage compliance risks\)|Apache 2\.0 \(permissive, unrestricted commercial and open\-source usage\)|
 
-### 基础技术栈
+### Technology Stack Overview
 
-- **核心框架**：\.NET 10（高性能跨平台）、Quartz\.NET（工业级调度内核）
+- **Core Framework**: \.NET 10 \(high\-performance cross\-platform runtime\), Quartz\.NET \(industrial\-grade scheduling kernel\)
 
-- **架构模式**：DDD领域驱动设计 \+ CQRS读写分离 \+ 前后端分离
+- **Architecture Pattern**: DDD \(Domain\-Driven Design\), CQRS Read\-Write Separation, Frontend\-Backend Separation
 
-- **数据持久化**：EF Core 9\.0、SQL Server、自动迁移
+- **Data Persistence**: EF Core 9\.0, SQL Server, automatic database migration
 
-- **架构组件**：MediatR（CQRS调度）、Serilog（全链路日志）
+- **Core Components**: MediatR \(CQRS pipeline scheduling\), Serilog \(structured full\-link logging\)
 
-- **部署方式**：Docker容器化、DockerCompose一键部署、Windows/Linux跨平台
+- **Deployment**: Docker containerization, Docker Compose one\-click orchestration, cross\-platform Windows/Linux support
 
-- **适配体系**：全兼容 \.NET6/\.NET7/\.NET8/\.NET10 微服务项目
+- **Compatibility**: Fully compatible with \.NET 6 / \.NET 7 / \.NET 8 / \.NET 10 microservice systems
 
-## 🏗️ 整体技术架构
+## 🏗️ Overall Technical Architecture
 
-采用**经典五层架构 \+ CQRS读写分离**，彻底分层解耦，API层极简、业务逻辑下沉，适配高扩展、易维护的生产级架构规范，严格区分项目层级职责，解决类库目录分散、层级混乱问题。
+The project adopts a **standard five\-layer hierarchical architecture combined with CQRS read\-write separation** to achieve complete decoupling and clear responsibility division\. The API layer is ultra\-lightweight with all complex business logic sunk into dedicated handlers, conforming to enterprise\-grade scalable and maintainable design standards while eliminating messy directory and layer confusion\.
 
-### 架构流转链路
+### Request Execution Pipeline
 
-前端请求 → Controller（仅路由转发）→ MediatR（Command/Query）→ Handler（核心业务逻辑）→ Repository（数据访问）→ Quartz调度服务/数据库
+Frontend Request → Controller \(Pure Routing Forwarding\) → MediatR \(Command/Query Dispatching\) → Handler \(Core Business Logic\) → Repository \(Data Access\) → Quartz Scheduler / Database
 
-### 标准化工程结构（统一根目录）
+### Standardized Project Structure
 
-所有类库统一收纳在解决方案根目录，结构规整、无路径混乱，适配Git统一托管：
+All modules are uniformly organized under the solution root with a clean, Git\-friendly structure:
 
-```Plain Text
+```plain text
 SchedulerJobCenter_Root/
-├── SchedulerJobCenter.sln                 # 解决方案根文件
-├── SchedulerJobCenter.Api/                # 启动层、接口层
-│   ├── Controllers/                       # 极简控制器（仅转发请求）
-│   ├── Filters/                           # 全局异常过滤器
-│   ├── Middleware/                        # 请求日志中间件
-│   ├── appsettings.json                   # 全局配置
-│   └── Program.cs                         # 程序入口
-├── SchedulerJobCenter.Application/        # 应用业务层（CQRS核心）
-│   ├── Commands/                          # 写操作指令（增删改启停）
-│   ├── Queries/                           # 读操作查询（列表、详情、校验）
-│   ├── DTOs/                              # 数据传输模型
-│   ├── Validators/                        # 参数校验
-│   └── Extensions/                        # 服务注册扩展
-├── SchedulerJobCenter.Domain/             # 领域核心层
-│   ├── Entities/                          # 数据库实体
-│   └── Enums/                             # 全局枚举
-├── SchedulerJobCenter.Infrastructure/     # 基础设施层
-│   ├── Data/                              # EF上下文、迁移文件
-│   ├── Repositories/                      # 数据仓储
-│   ├── Scheduling/                        # Quartz调度核心
-│   ├── BackgroundServices/                # 后台定时服务
-│   ├── Configuration/                     # 全局配置模型
-│   └── Extensions/                        # 基础设施注册
-└── SchedulerJobCenter.Shared/             # 公共共享层
-    ├── 统一响应模型
-    └── 分页通用模型
+├── SchedulerJobCenter.sln                 # Solution entry
+├── SchedulerJobCenter.Api/                # Startup & API presentation layer
+│   ├── Controllers/                       # Minimal routing-only controllers
+│   ├── Filters/                           # Global exception filters
+│   ├── Middleware/                        # Request logging middleware
+│   ├── appsettings.json                   # Global configuration file
+│   └── Program.cs                         # Application startup entry
+├── SchedulerJobCenter.Application/        # CQRS business application layer
+│   ├── Commands/                          # Write operations (Create/Update/Delete/Start/Stop)
+│   ├── Queries/                           # Read operations (List/Detail/Validation)
+│   ├── DTOs/                              # Data transfer objects
+│   ├── Validators/                        # Request parameter validation
+│   └── Extensions/                        # Service registration extensions
+├── SchedulerJobCenter.Domain/             # Core domain layer
+│   ├── Entities/                          # Business domain entities
+│   └── Enums/                             # Global enumeration definitions
+├── SchedulerJobCenter.Infrastructure/     # Infrastructure implementation layer
+│   ├── Data/                              # EF Core context & migration records
+│   ├── Repositories/                      # Data persistence repositories
+│   ├── Scheduling/                        # Quartz scheduling core implementation
+│   ├── BackgroundServices/                # Background long-running services
+│   ├── Configuration/                     # Strongly typed configuration models
+│   └── Extensions/                        # Infrastructure module registration
+└── SchedulerJobCenter.Shared/             # Common shared infrastructure
+    ├── Unified API response models
+    └── General pagination utility models
 ```
 
-### 各层级核心职责
+### Layer Responsibilities
 
-- **API层**：仅负责路由接收、参数基础校验、统一返回格式，无任何业务逻辑，极致轻量化
+- **API Layer**: Handles route matching, basic parameter verification, and unified response wrapping; contains zero business logic\.
 
-- **Application层（CQRS）**：核心业务逻辑下沉，区分读写操作，命令与查询隔离，支持独立扩展
+- **Application Layer \(CQRS\)**: Encapsulates all business workflows, strictly separating write commands and read queries for independent iteration and unit testing\.
 
-- **Domain层**：定义核心实体、枚举、业务规则，纯领域设计，无外部依赖
+- **Domain Layer**: Defines core business entities, rules and enumerations with zero external framework dependencies\.
 
-- **Infrastructure层**：实现数据持久化、Quartz调度、后台任务、日志清理、HTTP客户端配置
+- **Infrastructure Layer**: Implements data persistence, task scheduling, background cleaning, HTTP client management and external capabilities\.
 
-- **Shared层**：全局通用模型、工具类，所有项目共享引用
+- **Shared Layer**: Provides globally shared models, utilities and base types for cross\-project reference\.
 
-## 🔥 项目核心亮点
+## 🔥 Core Advantages \& Technical Highlights
 
-### 1\. 架构极致解耦，规范度拉满
+### 1\. Fully Decoupled \& Standardized Architecture
 
-- **业务与调度完全解耦**：所有微服务无需集成定时任务组件，专注核心业务，彻底消除服务臃肿问题
+- **Business\-Scheduling Isolation**: Microservices completely free from scheduling component integration, focusing solely on core business logic and eliminating service bloating\.
 
-- **CQRS读写分离架构**：接口层零业务逻辑，所有处理逻辑下沉Handler，代码结构清晰，便于迭代维护、单元测试
+- **Pure CQRS Implementation**: No business logic resides in controllers; all logic is centralized in handlers, ensuring clean code structure, high maintainability and testability\.
 
-- **分层彻底隔离**：领域、业务、基础设施、接口层层独立，依赖倒置，符合DDD设计思想
+- **Strict Hierarchical Isolation**: Adheres to DDD and dependency inversion principles with independent domain, business, infrastructure and presentation layers\.
 
-### 2\. 精准时区调度，解决行业痛点
+### 2\. Accurate Time Zone\-Aware Scheduling
 
-- 摒弃服务器本地时区限制，支持完整IANA标准时区配置（Asia/Shanghai、UTC、欧美时区等）
+- Decouples task triggering from server local time, supporting full IANA standard time zone configuration \(Asia/Shanghai, UTC, Europe/America time zones, etc\.\)\.
 
-- 任务严格按照**用户指定时区**触发，而非服务器时区，彻底解决跨地域部署、夏令时切换导致的任务偏移、漏执行问题
+- Tasks execute strictly based on **user\-configured time zones** rather than server time, eliminating execution offset, missed tasks and duplicate runs caused by cross\-region deployment and daylight saving time switching\.
 
-- 前端支持时区列表预览、Cron表达式实时校验\+下次5次执行时间预览，交互友好
+- Frontend provides time zone selection, real\-time Cron validation, and preview of the next 5 scheduled execution times for intuitive configuration\.
 
-### 3\. 高并发高可用，生产级稳定性
+### 3\. Production\-Grade Concurrency Control \& High Availability
 
-- **任务防并发**：基于Quartz原生特性，单任务禁止并发执行，天然保证幂等性
+- **Built\-In Concurrency Prevention**: Leverages Quartz native constraints to prohibit parallel execution of the same task, guaranteeing execution idempotency\.
 
-- **智能重试机制**：支持自定义重试次数、指数退避重试策略，解决瞬时网络波动导致的任务失败
+- **Adaptive Retry Mechanism**: Supports custom retry counts and exponential backoff strategies to resolve transient failures caused by network jitter or service spikes\.
 
-- **超时熔断**：单任务独立超时配置，防止任务卡死阻塞调度队列
+- **Task Timeout Circuit Breaking**: Independent timeout thresholds per task prevent blocking and scheduling queue accumulation\.
 
-- **集群高可用**：支持分布式集群部署、故障转移，单节点宕机不影响全局任务调度
+- **Distributed Cluster HA**: Supports multi\-node cluster deployment and automatic failover; single\-node failures do not affect global task scheduling stability\.
 
-### 4\. 全动态运维，无需重启服务
+### 4\. Zero\-Downtime Dynamic Operation \& Maintenance
 
-- 支持动态新增、编辑、暂停、恢复、删除定时任务，实时修改Cron表达式、URL、请求头、请求体、时区、超时时间
+- Fully dynamic task management: supports real\-time creation, editing, suspension, resumption and deletion of jobs, including instant modification of Cron expressions, request URLs, headers, bodies, time zones and timeout settings\.
 
-- 支持手动一键触发任务，无需等待调度周期，适配临时执行场景
+- Supports manual one\-shot task triggering to meet temporary execution demands without waiting for scheduled cycles\.
 
-- 所有配置动态生效，零停机运维，不影响线上业务
+- All configuration changes take effect instantly without service restarts or business interruption\.
 
-### 5\. 全链路可观测，日志自动化治理
+### 5\. Full\-Link Observability \& Automated Governance
 
-- 完整记录任务执行状态、耗时、HTTP状态码、响应体、异常堆栈、重试次数，支持精准问题排查
+- Records comprehensive task execution metrics: execution status, latency, HTTP status codes, response content, exception stack traces and retry histories for precise fault diagnosis\.
 
-- **自动日志清理**：可自定义日志保留天数，后台定时凌晨自动清理过期日志，避免数据库无限膨胀
+- **Automatic Log Cleanup**: Configurable log retention policies with background scheduled cleaning to prevent unlimited database growth\.
 
-- 全局异常统一捕获、分级日志输出，请求全链路日志记录，线上问题秒定位
+- Global unified exception handling and structured logging enable second\-level online problem localization\.
 
-### 6\. 高适配、轻量化易部署
+### 6\. Lightweight, Highly Adaptive \& Easy to Deploy
 
-- 支持GET/POST两种请求方式，自定义请求头、请求体，适配所有微服务HTTP接口调用场景
+- Supports HTTP GET/POST requests with customizable headers and payloads, adapting to all standard microservice invocation scenarios\.
 
-- 统一HttpClient并发连接控制，高并发场景下稳定可控
+- Optimized HttpClient connection pooling ensures stable invocation under high\-concurrency pressure\.
 
-- 支持Docker一键部署、DockerCompose编排，兼容Windows/Linux服务器
+- Supports Docker one\-click deployment and Docker Compose orchestration, compatible with Windows and Linux environments\.
 
-- 自带数据库自动迁移，无需手动建表，开箱即用
+- Built\-in automatic database migration eliminates manual table structure initialization, enabling out\-of\-the\-box usage\.
 
-## 📋 核心功能清单
+## 📋 Core Feature List
 
-- ✅ 6位秒级Cron定时调度，支持标准表达式校验与预执行预览
+- ✅ 6\-digit second\-level Cron scheduling with real\-time validation and execution preview
 
-- ✅ 自定义IANA时区调度，跨时区精准触发
+- ✅ IANA standard time zone scheduling for cross\-region precise task triggering
 
-- ✅ 任务全生命周期管理（增删改查、暂停、恢复、手动触发）
+- ✅ Full task lifecycle management \(CRUD, suspend, resume, manual trigger\)
 
-- ✅ 任务失败自动重试、超时熔断、并发拦截
+- ✅ Automatic failure retry, timeout circuit breaking and concurrency interception
 
-- ✅ HTTP GET/POST动态调用，支持自定义请求头、请求体、超时时间
+- ✅ Dynamic HTTP GET/POST invocation with custom headers, bodies and timeout control
 
-- ✅ 任务执行日志全链路记录、分页查询、历史回溯
+- ✅ Full\-link execution logging, paginated query and historical traceability
 
-- ✅ 定时自动清理过期日志，数据库轻量化治理
+- ✅ Scheduled automatic expired log cleaning for database lightweight governance
 
-- ✅ 全局统一异常处理、请求日志监控
+- ✅ Global unified exception handling and request monitoring
 
-- ✅ Swagger接口文档、健康检查、跨域支持
+- ✅ Built\-in Swagger API documentation, health check and CORS support
 
-- ✅ 容器化部署、集群高可用适配
+- ✅ Containerized deployment and distributed cluster high availability support
 
-## 🚀 快速部署
+## 🚀 Quick Deployment
 
-### 环境要求
+### Environment Prerequisites
 
-- \.NET 10 Runtime / SDK
+- \.NET 10 SDK / Runtime
 
-- SQL Server 2019\+
+- SQL Server 2019 or later
 
-- Docker（可选，容器化部署）
+- Docker \(optional, for containerized deployment\)
 
-### 部署方式
+### Deployment Methods
 
-1. **源码部署**：拉取代码 → 还原Nuget包 → 配置数据库连接 → 编译运行（自动执行数据库迁移）
+1. **Source Code Deployment**: Clone repository → Restore NuGet packages → Configure database connection → Build \& Run \(auto database migration\)
 
-2. **Docker部署**：执行docker\-compose\.yml，一键启动API服务\+SQL Server容器
+2. **Docker Deployment**: Execute docker\-compose\.yml to launch API and SQL Server containers in one click
 
-## 📌 项目总结
+## 📌 Project Summary
 
-SchedulerJobCenter 是一款**专为\.NET微服务生态量身打造的生产级分布式定时任务调度中心**，摒弃了Hangfire的商用限制与功能缺陷，基于Quartz\.NET原生能力深度封装，结合CQRS规范架构，解决了微服务定时任务分散、难管控、时区不准、并发异常、运维繁琐等核心痛点。
+SchedulerJobCenter is a **production\-grade distributed task scheduling platform exclusively optimized for \.NET microservice ecosystems**\. It avoids the commercial limitations and functional deficiencies of Hangfire, adopting native Quartz\.NET scheduling capabilities and standardized CQRS layered architecture\. It fundamentally solves common microservice scheduling pain points including decentralized task management, inaccurate time zone execution, concurrency anomalies and cumbersome operation maintenance\.
 
-项目架构规范、代码解耦彻底、容错机制完善、可观测性极强，同时保持轻量化、低部署成本，支持单机/集群部署，可直接落地中大型分布式项目生产环境，是\.NET生态下高性价比的统一调度解决方案。
+With standardized architecture, thorough code decoupling, robust fault tolerance and comprehensive observability, the project maintains lightweight characteristics and low deployment costs\. It supports both standalone and cluster deployment scenarios and can be directly deployed to production for medium and large\-scale distributed systems, serving as a high\-cost\-performance, enterprise\-level unified scheduling solution for the \.NET ecosystem\.
 
-> 
+
