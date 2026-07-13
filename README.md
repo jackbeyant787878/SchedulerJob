@@ -203,8 +203,9 @@ With standardized architecture, thorough code decoupling, robust fault tolerance
 
 The following flowchart focuses entirely on the **native underlying execution principle of Quartz\.NET**, abandoning upper business CQRS logic\. It accurately restores the core workflow of Quartz job storage, time rule parsing, distributed cluster competition, thread pool scheduling, task execution, fault retry and persistent governance:
 
+<img width="2428" height="5150" alt="下载" src="https://github.com/user-attachments/assets/85ac9d8d-5584-46b6-a3d6-2291cf396c57" />
 
 
 **Quartz Core Principle Explanation**: The core scheduling capability entirely relies on Quartz\.NET native mechanism\. It implements**database persistent scheduling** based on AdoJobStore, completes distributed task preemption through cluster database locks, strictly controls task idempotency via built\-in concurrent interception features, and matches precise scheduling time based on IANA time zone \+ standard six\-digit Cron\. It forms a closed\-loop scheduling mechanism of scanning, competing, executing, fault\-tolerant and iterative triggering, which fundamentally solves the problems of inaccurate timing and unstable cluster execution of traditional scheduling frameworks\.
 
-> （注：部分内容可能由 AI 生成）
+
