@@ -23,6 +23,8 @@ To meet enterprise-grade foundation requirements, lightweight single-service sol
 | Maximum Cluster Concurrent QPS | 120+ | 80+ | 500+ |
 
 ## 4. Core Trade-Off Decision Logic
+<img width="1060" height="501" alt="image" src="https://github.com/user-attachments/assets/d8ef1bd1-de68-43dd-9c1a-ccc57fc24b02" />
+
 ### 4.1 Why Hangfire is Rejected
 Hangfire offers rapid development and out-of-the-box usability, making it well suited for lightweight scheduling in monolithic and small projects. However, as an **enterprise-grade unified scheduling foundation**, it has critical limitations: a simplistic cluster locking mechanism, high duplicate execution rates under concurrency, no support for complex scheduling rules, no business isolation, and limited ability to deeply customize fault tolerance and circuit breaking strategies. It cannot support unified governance across multiple microservices.
 
