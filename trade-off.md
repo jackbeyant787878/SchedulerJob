@@ -1,42 +1,42 @@
-# .NET 10 企业级调度中心 SchedulerJobCenter - Quartz.net 技术选型说明
+# .NET 10 Enterprise Scheduler Job Center - Quartz.NET Technology Selection Specification
 
-## 一、组件定位
-本项目调度中心定位为 **企业级统一定时任务调度底座**，服务于全企业多微服务业务系统，提供标准化、可扩展、高可用的分布式任务调度能力。对外开放统一调度 API，支持动态创建、启停、修改定时任务，覆盖全业务线常规及复杂定时场景。
+## 1. Component Positioning
+This scheduler job center serves as the **enterprise-grade unified scheduled task scheduling foundation**, serving all microservice business systems across the enterprise. It provides standardized, scalable, highly available distributed task scheduling capabilities with an open unified scheduling API supporting dynamic creation, suspension, resumption, and modification of scheduled tasks, covering both standard and complex scheduling scenarios across all business lines.
 
-核心建设目标：稳定可靠、场景全覆盖、支持多业务隔离、可长期运维迭代、适配微服务集群部署。
+Core objectives: reliability and stability, full scenario coverage, multi-business isolation, long-term operability and iteration, and microservice cluster deployment compatibility.
 
-## 二、选型背景
-在企业微服务架构中，零散的本地定时任务存在管控混乱、无法统一治理、集群冲突、无容错机制等问题。因此需要建设统一的调度中心底座。本次选型针对三种主流方案进行量化权衡：**Hangfire、自研定时任务、Quartz.net**。
+## 2. Selection Background
+In enterprise microservice architectures, fragmented local scheduled tasks create management chaos, inconsistent governance, cluster conflicts, and missing fault tolerance mechanisms. A unified scheduler center foundation is therefore required. This selection conducts a quantitative trade-off analysis across three mainstream solutions: **Hangfire, custom scheduled tasks, and Quartz.NET**.
 
-为适配企业级底座诉求，摒弃轻量化单服务方案，优先保障稳定性、场景能力与扩展性。
+To meet enterprise-grade foundation requirements, lightweight single-service solutions are set aside in favor of stability, scenario coverage, and extensibility.
 
-## 三、多方案量化 TradeOff 对比
-评分规则：满分10分，基于稳定性、场景适配、开发成本、隔离能力、运维扩展性、并发性能实测打分。
+## 3. Multi-Solution Quantitative Trade-Off Comparison
+*Scoring scale: 10-point maximum, evaluated based on stability, scenario fit, development cost, isolation capability, operational extensibility, and measured concurrent performance.*
 
-| 对比维度 | Hangfire | 自研定时任务 | Quartz.net（最终选型） |
-|----------|----------|--------------|------------------------|
-| 集群稳定性 | 6.0（重复执行率3.2%） | 4.5（多节点冲突严重） | 9.8（零丢失、零重复执行） |
-| 复杂业务场景适配 | 5.0（仅基础周期任务） | 3.0（仅简单Cron） | 9.9（全场景调度、任务编排、日历策略） |
-| 开发上手便捷度 | 9.5（开箱即用零配置） | 7.0（轻量但需手写底层） | 5.0（配置复杂、需二次封装） |
-| 多业务隔离能力 | 3.0（无原生隔离） | 2.0（多业务必然冲突） | 9.5（分组/租户隔离、权限可控） |
-| 运维与扩展能力 | 5.5（核心逻辑封闭，自定义能力弱） | 4.0（无监控告警、无统一管控） | 9.6（全链路可扩展、适配统一运维体系） |
-| 集群最大并发QPS | 120+ | 80+ | 500+ |
+| Evaluation Dimension | Hangfire | Custom Scheduled Tasks | Quartz.NET (Final Selection) |
+|---------------------|----------|------------------------|------------------------------|
+| Cluster Stability | 6.0 (3.2% duplicate execution rate) | 4.5 (Severe multi-node conflicts) | 9.8 (Zero loss, zero duplicate execution) |
+| Complex Business Scenario Coverage | 5.0 (Basic periodic tasks only) | 3.0 (Simple Cron only) | 9.9 (Full scenario scheduling, task orchestration, calendar policies) |
+| Development Ease of Use | 9.5 (Out-of-the-box, zero configuration) | 7.0 (Lightweight but requires handwritten underlying logic) | 5.0 (Complex configuration, requires secondary encapsulation) |
+| Multi-Business Isolation Capability | 3.0 (No native isolation) | 2.0 (Guaranteed multi-business conflicts) | 9.5 (Group/tenant isolation, granular permission control) |
+| Operations & Extensibility | 5.5 (Closed core logic, limited customization) | 4.0 (No monitoring, alerting, or centralized management) | 9.6 (Full-link extensible, compatible with unified operations systems) |
+| Maximum Cluster Concurrent QPS | 120+ | 80+ | 500+ |
 
-## 四、核心 TradeOff 取舍逻辑
-### 4.1 为什么放弃 Hangfire
-Hangfire 优势是开发极快、开箱即用，适合单体、小型项目轻量定时场景。但作为**企业级统一调度底座**存在致命短板：集群锁机制简陋、高并发重复执行率高、不支持复杂调度规则、无业务隔离能力、无法深度定制容错与熔断策略，无法支撑多微服务统一治理。
+## 4. Core Trade-Off Decision Logic
+### 4.1 Why Hangfire is Rejected
+Hangfire offers rapid development and out-of-the-box usability, making it well suited for lightweight scheduling in monolithic and small projects. However, as an **enterprise-grade unified scheduling foundation**, it has critical limitations: a simplistic cluster locking mechanism, high duplicate execution rates under concurrency, no support for complex scheduling rules, no business isolation, and limited ability to deeply customize fault tolerance and circuit breaking strategies. It cannot support unified governance across multiple microservices.
 
-### 4.2 为什么放弃自研定时任务
-自研方案仅能满足简单 Cron 调度，无集群容错、无持久化、无重试机制、无监控告警。多节点部署必然出现任务冲突、丢失、重复执行问题，后期维护成本极高，无法沉淀为公共底座能力。
+### 4.2 Why Custom Scheduled Tasks are Rejected
+Custom implementations only support basic Cron scheduling and lack cluster fault tolerance, persistence, retry mechanisms, monitoring, and alerting. Multi-node deployment inevitably causes task conflicts, loss, and duplicate execution, with prohibitively high long-term maintenance costs. They cannot be consolidated into a reusable shared foundation capability.
 
-### 4.3 为什么选择 Quartz.net（核心取舍）
-**取舍核心：牺牲短期开发效率，换取企业级长期稳定与场景全覆盖。**
+### 4.3 Core Trade-Off for Choosing Quartz.NET
+**Core trade-off: Sacrifice short-term development efficiency in exchange for enterprise-grade long-term stability and full scenario coverage.**
 
-Quartz.net 唯一劣势是初期配置复杂、需要二次封装，属于一次性开发成本；但收益是长期且不可替代的：成熟分布式集群机制、百分百稳定任务调度、支持复杂业务编排、完善的多业务隔离、极强的扩展能力，完全满足企业微服务统一调度底座的建设诉求。
+Quartz.NET's only drawback is complex initial configuration and the need for secondary encapsulation — a one-time development cost. Its benefits are long-term and irreplaceable: a mature distributed cluster mechanism, guaranteed task reliability with zero loss and zero duplication, support for complex business orchestration, robust multi-business isolation, and strong extensibility. It fully satisfies the requirements for a unified scheduling foundation for enterprise microservices.
 
-## 五、落地优势与短板补偿方案
-- **短板补偿**：统一封装 Quartz 底座通用库，封装标准化任务注册、重试、告警、日志、监控能力，业务侧无需感知底层复杂配置，实现开箱即用。
-- **落地优势**：支持集群高可用、任务不丢不重、复杂日历调度、任务依赖编排、多业务隔离、开放 API 动态管控。
+## 5. Implementation Advantages and Shortcoming Mitigation
+- **Shortcoming mitigation**: A unified Quartz base library encapsulates standardized task registration, retry, alerting, logging, and monitoring capabilities. Business teams use it out of the box without dealing with underlying configuration complexity.
+- **Core advantages**: cluster high availability, zero task loss or duplication, complex calendar-based scheduling, task dependency orchestration, multi-business isolation, and open APIs for dynamic management.
 
-## 六、最终选型结论
-Quartz.net 是 .NET 生态下 **企业级统一调度中心的最优平衡选型**。通过牺牲短期开发便捷性，彻底解决轻量方案稳定性差、场景能力不足、无法统一治理的痛点，适配企业多微服务长期迭代与统一运维架构。
+## 6. Final Selection Conclusion
+Quartz.NET is the **optimal balanced choice** for enterprise-grade unified scheduler centers in the .NET ecosystem. By trading short-term development convenience, it resolves the core pain points of lightweight solutions: poor stability, limited scenario coverage, and governance challenges. It aligns with the long-term evolution and unified operations architecture of enterprise multi-microservice systems.
